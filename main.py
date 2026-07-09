@@ -4,6 +4,9 @@ from openai import OpenAI
 from openai.resources.admin.organization import usage
 import argparse
 
+from callables import available_functions
+from prompt import system_prompt
+
 load_dotenv()
 api_key=os.getenv("OPENROUTER_API_KEY",default=None)
 if api_key is None:
@@ -20,8 +23,16 @@ parser.add_argument("prompt",type=str,help="User Prompt")
 parser.add_argument("--verbose",action="store_true",help="Detailed info")
 arg=parser.parse_args()
 
-messages=[{"role":"user","content" :arg.prompt }]
-response=client.chat.completions.create(model="openrouter/free",messages=messages)
+
+messages=[
+    {"role":"system","content":system_prompt},
+    {"role":"user","content" :arg.prompt }
+]
+response=client.chat.completions.create(
+    model="openrouter/free",
+    messages=messages,
+    tools=available_functions,
+)
 
 
 
