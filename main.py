@@ -3,10 +3,16 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from openai.resources.admin.organization import usage
 import argparse
-import json
 
-from callables import available_functions
+import json
+from functions.get_file_content import get_file_content
+from functions.get_files_info import get_files_info
+from functions.run_python_file import run_python_file
+from functions.write_file import write_file
+
+from callables import available_functions, call_function
 from prompt import system_prompt
+from test_get_file_content import result
 
 load_dotenv()
 api_key=os.getenv("OPENROUTER_API_KEY",default=None)
@@ -29,28 +35,33 @@ messages=[
     {"role":"system","content":system_prompt},
     {"role":"user","content" :arg.prompt }
 ]
-response=client.chat.completions.create(
-    model="openrouter/free",
-    messages=messages,
-    tools=available_functions,
-)
-
-message = response.choices[0].message
-if message.tool_calls:
-    for call in message.tool_calls:
-        function_args = json.loads(call.function.arguments or "{}")
-        print(f"Calling function: {call.function.name}({function_args})")
-
-
-
 
 def main():
-    if arg.verbose:
-        print("User prompt:",arg.prompt)
-        print(response.choices[0].message.content)
-        print("Prompt tokens:",response.usage.prompt_tokens)
-        print("Response tokens:",response.usage.completion_tokens )
+    for _ in range(20):
+        response=client.chat.completions.create(
+            model="openrouter/free",
+            messages=messages,
+            tools=available_functions,
+        )
+
+        message = response.choices[0].message
+        messages.append(message)
+
+        if not message.tool_calls:
+            print(message.content)
+            break
+
+        for call in message.tool_calls:
+            output_message=call_function(call, arg.verbose)
+
+            messages.append(output_message)
+            if not output_message["content"]:
+                raise Exception( "Function returned no content")
+            if arg.verbose:
+                print(f"-> {output_message['content']}")
     else:
-        print(message.content)
+        print("Agent reached maximum iterations without finishing.")
+        exit(1)
+
 if __name__ == "__main__":
     main()
