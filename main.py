@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from openai import OpenAI
 from openai.resources.admin.organization import usage
 import argparse
+import json
 
 from callables import available_functions
 from prompt import system_prompt
@@ -34,6 +35,12 @@ response=client.chat.completions.create(
     tools=available_functions,
 )
 
+message = response.choices[0].message
+if message.tool_calls:
+    for call in message.tool_calls:
+        function_args = json.loads(call.function.arguments or "{}")
+        print(f"Calling function: {call.function.name}({function_args})")
+
 
 
 
@@ -44,6 +51,6 @@ def main():
         print("Prompt tokens:",response.usage.prompt_tokens)
         print("Response tokens:",response.usage.completion_tokens )
     else:
-        print(response.choices[0].message.content)
+        print(message.content)
 if __name__ == "__main__":
     main()
